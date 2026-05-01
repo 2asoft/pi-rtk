@@ -18,19 +18,23 @@ import {
   createBashTool,
   createLocalBashOperations,
 } from "@mariozechner/pi-coding-agent";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 
 const REWRITE_TIMEOUT_MS = 5000;
+const REWRITE_SUCCESS_STATUSES = new Set([0, 3]);
 
 function rtkRewriteCommand(command: string): string | undefined {
-  try {
-    return execFileSync("rtk", ["rewrite", command], {
-      encoding: "utf-8",
-      timeout: REWRITE_TIMEOUT_MS,
-    }).trimEnd();
-  } catch {
+  const result = spawnSync("rtk", ["rewrite", "--", command], {
+    encoding: "utf-8",
+    timeout: REWRITE_TIMEOUT_MS,
+  });
+
+  if (result.error || !REWRITE_SUCCESS_STATUSES.has(result.status ?? -1)) {
     return undefined;
   }
+
+  const rewritten = result.stdout.trimEnd();
+  return rewritten.length > 0 ? rewritten : undefined;
 }
 
 export default function (pi: ExtensionAPI) {
